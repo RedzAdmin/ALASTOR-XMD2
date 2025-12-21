@@ -1,128 +1,94 @@
 const fs = require('fs');
 const path = require('path');
-const { isUserOwner, isUserCreator, isOwnerOrSudo } = require('../lib/isOwner');
 
-async function addownerCommand(sock, chatId, message) {
-    try {
-        const senderId = message.key.participant || message.key.remoteJid;
-        
-        // Check if sender is an owner OR creator
-        const canAddOwner = isUserOwner(senderId) || isUserCreator(senderId) || isOwnerOrSudo || message.key.fromMe;
-        
-        if (!canAddOwner) {
-            return await sock.sendMessage(chatId, {
-                text: "╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *🚫 ACCESS DENIED*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\nOnly existing bot owners can add new owners.",
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363404912601381@newsletter',
-                        newsletterName: 'ALASTOR-XMD',
-                        serverMessageId: -1
-                    }
-                }
-            }, { quoted: message });
-        }
-
-        // Get the number to add as owner
-        const rawText = message.message?.conversation?.trim() ||
-                       message.message?.extendedTextMessage?.text?.trim() ||
-                       '';
-        
-        const args = rawText.split(' ');
-        const number = args[1] || ''; // Get the number after .addowner
-        
-        if (!number) {
-            return await sock.sendMessage(chatId, {
-                text: "╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *👑 ADD OWNER*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\n*Usage:* `.addowner 2348123456789`\n\n*Example:* `.addowner 2348123456789`\n\n*Note:* This will give full bot access (except bug commands).",
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363404912601381@newsletter',
-                        newsletterName: 'ALASTOR-XMD',
-                        serverMessageId: -1
-                    }
-                }
-            }, { quoted: message });
-        }
-
-        // Clean the number
-        const cleanNumber = number.replace(/\D/g, '');
-        const userJid = cleanNumber + '@s.whatsapp.net';
-        
-        // Read current owner data
-        const ownerPath = path.join(__dirname, '../data/darkempiretech.json');
-        let ownerData = {};
-        
-        if (fs.existsSync(ownerPath)) {
-            ownerData = JSON.parse(fs.readFileSync(ownerPath, 'utf8'));
-        } else {
-            // Create default structure
-            ownerData = {
-                owners: [],
-                createdBy: "CODEBREAKER (2347030626048)"
-            };
-        }
-        
-        // Initialize owners array if not exists
-        if (!ownerData.owners) ownerData.owners = [];
-        
-        // Check if already an owner
-        const isAlreadyOwner = ownerData.owners.some(ownerJid => 
-            ownerJid.replace(/:\d+@/, '@') === userJid
-        );
-        
-        if (isAlreadyOwner) {
-            return await sock.sendMessage(chatId, {
-                text: `╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *⚠️ ALREADY OWNER*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\n${cleanNumber} is already a bot owner.`,
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363404912601381@newsletter',
-                        newsletterName: 'ALASTOR-XMD',
-                        serverMessageId: -1
-                    }
-                }
-            }, { quoted: message });
-        }
-        
-        // Add new owner
-        ownerData.owners.push(userJid);
-        
-        // Save to file
-        fs.writeFileSync(ownerPath, JSON.stringify(ownerData, null, 2));
-        
-        // Send success message
-        await sock.sendMessage(chatId, {
-            text: `╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *✅ OWNER ADDED*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\n*Successfully added as bot owner:*\n📱 Number: ${cleanNumber}\n🔑 Access: Full bot control (except bug commands)\n👑 Status: Bot Owner`,
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363404912601381@newsletter',
-                    newsletterName: 'ALASTOR-XMD',
-                    serverMessageId: -1
-                }
+module.exports = {
+    name: "addowner",
+    alias: ["addadmin", "makeowner", "owneradd"],
+    desc: "Add a new bot owner",
+    category: "Owner",
+    usage: "addowner <number>",
+    react: "👑",
+    start: async (Miku, m, { text, prefix, isCreator }) => {
+        try {
+            if (!isCreator) {
+                return m.reply(`╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *🚫 ACCESS DENIED*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\nOnly existing bot owners can add new owners.`);
             }
-        }, { quoted: message });
 
-    } catch (error) {
-        console.error('Addowner Error:', error);
-        await sock.sendMessage(chatId, {
-            text: `╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *❌ ERROR*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\nFailed to add owner: ${error.message}`,
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363404912601381@newsletter',
-                    newsletterName: 'ALASTOR-XMD',
-                    serverMessageId: -1
-                }
+            if (!text) {
+                return m.reply(`╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *👑 ADD OWNER*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\n*Usage:* ${prefix}addowner <number>\n\n*Example:* ${prefix}addowner 2348123456789\n\n*Note:* This will give full bot access.`);
             }
-        }, { quoted: message });
+
+            // Clean the number
+            const cleanNumber = text.replace(/\D/g, '');
+            
+            if (cleanNumber.length < 10) {
+                return m.reply(`╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *❌ INVALID NUMBER*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\nPlease provide a valid phone number (10+ digits).\n\n*Example:* 2348123456789`);
+            }
+            
+            const userJid = cleanNumber + '@s.whatsapp.net';
+            
+            // Read current owner data
+            const ownerPath = path.join(__dirname, '..', 'data', 'darkempiretech.json');
+            let ownerData = {};
+            
+            if (fs.existsSync(ownerPath)) {
+                try {
+                    const fileContent = fs.readFileSync(ownerPath, 'utf8');
+                    ownerData = JSON.parse(fileContent);
+                } catch (e) {
+                    console.error('Error reading owner file:', e);
+                    ownerData = {
+                        owners: [],
+                        createdBy: "CODEBREAKER"
+                    };
+                }
+            } else {
+                // Create default structure
+                ownerData = {
+                    owners: [],
+                    createdBy: "CODEBREAKER"
+                };
+            }
+            
+            // Initialize owners array if not exists
+            if (!ownerData.owners) ownerData.owners = [];
+            
+            // Check if already an owner
+            const isAlreadyOwner = ownerData.owners.some(ownerJid => {
+                const ownerNumber = ownerJid.replace(/:\d+@/, '@').split('@')[0];
+                return ownerNumber === cleanNumber;
+            });
+            
+            if (isAlreadyOwner) {
+                return m.reply(`╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *⚠️ ALREADY OWNER*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\n${cleanNumber} is already a bot owner.\n\n✅ User already has full access.`);
+            }
+            
+            // Add new owner
+            ownerData.owners.push(userJid);
+            
+            // Save to file
+            try {
+                fs.writeFileSync(ownerPath, JSON.stringify(ownerData, null, 2));
+            } catch (writeError) {
+                console.error('Error writing owner file:', writeError);
+                return m.reply(`╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *❌ SAVE ERROR*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\nFailed to save owner data.\n\nPlease check file permissions.`);
+            }
+            
+            // Send success message
+            m.reply(`╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *✅ OWNER ADDED*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\n*Successfully added as bot owner:*\n📱 Number: ${cleanNumber}\n🔑 Access: Full bot control\n👑 Status: Bot Owner\n\n*Permissions granted:*\n• All commands access\n• Bot configuration\n• User management\n• Owner-only features`);
+            
+            // Try to notify the new owner
+            try {
+                await Miku.sendMessage(userJid, {
+                    text: `👑 *BOT OWNER ACCESS GRANTED*\n\nYou have been added as an owner of ALASTOR-XD bot!\n\nYou now have full access to all bot features.\n\nUse .help to see available commands.`
+                });
+            } catch (notifyError) {
+                console.log('Could not notify new owner:', notifyError.message);
+            }
+            
+        } catch (error) {
+            console.error('Addowner Error:', error);
+            m.reply(`╭━━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *❌ ERROR*\n╰━━━━━━━━━━━━━━━━━━┈⊷\n\nFailed to add owner: ${error.message}\n\nPlease try again or contact support.`);
+        }
     }
-}
-
-module.exports = addownerCommand;
+};

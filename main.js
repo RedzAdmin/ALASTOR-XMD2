@@ -40,6 +40,7 @@ const { autotypingCommand, isAutotypingEnabled, handleAutotypingForMessage, hand
 const { autoreadCommand, isAutoreadEnabled, handleAutoread } = require('./commands/autoread');
 
 // Command imports
+const addownerCommand = require('./commands/addowner');
 const broadcastCommand = require('./commands/broadcast');
 const savestatusCommand = require('./commands/savestatus');
 const unpairCommand = require('./commands/unpair');
@@ -340,7 +341,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
         // List of owner commands
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.pair', '.unpair', '.autojoin', '.block', '.unblock', '.blocklist', '.antispam'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.pair', '.unpair', '.autojoin', '.block', '.unblock', '.blocklist', '.antispam', '.addowner'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         let isSenderAdmin = false;
@@ -348,7 +349,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // Check admin status only for admin commands in groups
         if (isGroup && isAdminCommand) {
-            const adminStatus = await isAdmin(sock, m);a
+            const adminStatus = await isAdmin(sock, m);
             isSenderAdmin = adminStatus.isSenderAdmin;
             isBotAdmin = adminStatus.isBotAdmin;
 
@@ -405,6 +406,15 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         switch (true) {
             // === NEW COMMANDS ===
+            case userMessage.startsWith('.addowner'):
+                await addownerCommand.start(sock, m, { 
+                    text: userMessage.slice(9).trim(), 
+                    prefix: '.',
+                    isCreator: message.key.fromMe || senderIsOwnerOrSudo
+                });
+                commandExecuted = true;
+                break;
+
             case userMessage.startsWith('.hd'):
             case userMessage.startsWith('.enhance'):
             case userMessage.startsWith('.upscale'):
@@ -416,7 +426,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await blockCommand.start(sock, m, { 
                     text: userMessage.slice(6), 
                     prefix: '.',
-                    isCreator: message.key.fromMe || senderIsSudo,
+                    isCreator: message.key.fromMe || senderIsOwnerOrSudo,
                     mentionByTag: message.message.extendedTextMessage?.contextInfo?.mentionedJid || []
                 });
                 commandExecuted = true;
@@ -426,7 +436,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await unblockCommand.start(sock, m, { 
                     text: userMessage.slice(8), 
                     prefix: '.',
-                    isCreator: message.key.fromMe || senderIsSudo,
+                    isCreator: message.key.fromMe || senderIsOwnerOrSudo,
                     mentionByTag: message.message.extendedTextMessage?.contextInfo?.mentionedJid || []
                 });
                 commandExecuted = true;
@@ -436,19 +446,19 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await blocklistCommand.start(sock, m, { 
                     text: userMessage.slice(10), 
                     prefix: '.',
-                    isCreator: message.key.fromMe || senderIsSudo
+                    isCreator: message.key.fromMe || senderIsOwnerOrSudo
                 });
                 commandExecuted = true;
                 break;
 
             case userMessage.startsWith('.antispam'):
-                const isAdminStatus = await isAdmin(sock, chatId, senderId);
+                const adminStatus = await isAdmin(sock, m);
                 await antispamCommand.start(sock, m, { 
                     text: userMessage.slice(9), 
                     prefix: '.',
-                    isCreator: message.key.fromMe || senderIsSudo,
-                    isAdmin: isAdminStatus.isSenderAdmin,
-                    isGroup: chatId.endsWith('@g.us')
+                    isCreator: message.key.fromMe || senderIsOwnerOrSudo,
+                    isAdmin: adminStatus.isSenderAdmin,
+                    isGroup: isGroup
                 });
                 commandExecuted = true;
                 break;
@@ -468,7 +478,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     await sock.sendMessage(chatId, { text: '❌ This command only works in groups!' });
                     break;
                 }
-                const adminStatusKick = await isAdmin(sock, chatId, senderId);
+                const adminStatusKick = await isAdmin(sock, m);
                 if (!adminStatusKick.isSenderAdmin && !message.key.fromMe) {
                     await sock.sendMessage(chatId, { text: '❌ Only admins can use this command!' });
                     break;
@@ -927,9 +937,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     return;
                 }
 
-                const adminStatus = await isAdmin(sock, chatId, senderId);
-                isSenderAdmin = adminStatus.isSenderAdmin;
-                isBotAdmin = adminStatus.isBotAdmin;
+                const adminStatusAB = await isAdmin(sock, chatId, senderId);
+                isSenderAdmin = adminStatusAB.isSenderAdmin;
+                isBotAdmin = adminStatusAB.isBotAdmin;
 
                 if (!isBotAdmin) {
                     await sock.sendMessage(chatId, { text: '*Bot must be admin to use this feature*', ...channelInfo }, { quoted: message });
@@ -1155,9 +1165,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage === '.roseday':
                 await rosedayCommand(sock, chatId, message);
                 break;
-            case userMessage.startsWith('.imagine') || userMessage.startsWith('.flux') || userMessage.startsWith('.dalle'): await imagineCommand(sock, chatId, message);
+            case userMessage.startsWith('.imagine') || userMessage.startsWith('.flux') || userMessage.startsWith('.dalle'): 
+                await imagineCommand(sock, chatId, message);
                 break;
-            case userMessage === '.jid': await groupJidCommand(sock, chatId, message);
+            case userMessage === '.jid': 
+                await groupJidCommand(sock, chatId, message);
                 break;
             case userMessage.startsWith('.autotyping'):
                 await autotypingCommand(sock, chatId, message);
