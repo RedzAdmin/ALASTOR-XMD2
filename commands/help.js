@@ -13,7 +13,6 @@ const botImages = [
 // Array of menu music files to rotate through
 const menuMusic = [
     'menu.mp3',
-    'menu1.mp3',
     'menu2.mp3', 
     'menu3.mp3',
     'menu4.mp3'
@@ -75,9 +74,9 @@ async function helpCommand(sock, chatId, message, channelLink) {
     const helpMessage = `
 ╭━━━━━━━━━━━━━━━━━┈⊷
 ┃✮│➣ *🌹 ${settings.botName || '𝐀𝐋𝐀𝐒𝐓𝐎𝐑-𝐗𝐌𝐃'}*  
-┃✮│➣ Version: *${settings.version || '3.0.0'}*
+┃✮│➣ Version: *${settings.version || '2.0.0'}*
 ┃✮│➣ by ${settings.botOwner || '𝐂𝐎𝐃𝐄𝐁𝐑𝐄𝐀𝐊𝐄𝐑'}
-┃✮│➣ YT : ${global.ytch || 'Hacking Unveiled'}
+┃✮│➣ YT : ${global.ytch || 'unveiledhacking'}
 ┃✮│➣ Assets: ${assets.count} loaded
 ╰━━━━━━━━━━━━━━━━━┈⊷
 

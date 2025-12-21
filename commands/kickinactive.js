@@ -48,7 +48,7 @@ module.exports = {
             }
             
             if (inactiveMembers.length === 0) {
-                return m.reply(`╭━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *NO INACTIVE MEMBERS*\n╰━━━━━━━━━━━━━━━━━┈⊷\n\n✅ All members have been active in the last ${days} days!`);
+                return m.reply(`╭━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *NO INACTIVE MEMBERS*\n╰━━━━━━━━━━━━━━━━━┈⊷\n\n*All members have been active in the last ${days} days!*`);
             }
             
             let report = `╭━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *INACTIVE MEMBERS*\n╰━━━━━━━━━━━━━━━━━┈⊷\n\n`;

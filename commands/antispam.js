@@ -51,7 +51,7 @@ module.exports = {
             
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
             
-            return m.reply(`╭━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *ANTI-SPAM DISABLED*\n╰━━━━━━━━━━━━━━━━━┈⊷\n\n⚠️ Spam protection is now disabled!`);
+            return m.reply(`╭━━━━━━━━━━━━━━━━━┈⊷\n┃✮│➣ *ANTI-SPAM DISABLED*\n╰━━━━━━━━━━━━━━━━━┈⊷\n\n⚠️ Spam protection is now disabled!, Your now vulnerable 🙂🫴`);
         }
 
         if (action === 'status') {
