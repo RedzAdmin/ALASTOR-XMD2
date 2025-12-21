@@ -35,7 +35,7 @@ const ytdl = require('ytdl-core');
 const axios = require('axios');
 const ffmpeg = require('fluent-ffmpeg');
 const { isSudo } = require('./lib/index');
-const isOwnerOrSudo = require('./lib/isOwner');
+const { isOwnerOrSudo } = require('./lib/isOwner');
 const { autotypingCommand, isAutotypingEnabled, handleAutotypingForMessage, handleAutotypingForCommand, showTypingAfterCommand } = require('./commands/autotyping');
 const { autoreadCommand, isAutoreadEnabled, handleAutoread } = require('./commands/autoread');
 
@@ -349,7 +349,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // Check admin status only for admin commands in groups
         if (isGroup && isAdminCommand) {
-            const adminStatus = await isAdmin(sock, m);
+            const adminStatus = await isAdmin(sock, chatId, senderId);
             isSenderAdmin = adminStatus.isSenderAdmin;
             isBotAdmin = adminStatus.isBotAdmin;
 
@@ -452,7 +452,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
 
             case userMessage.startsWith('.antispam'):
-                const adminStatus = await isAdmin(sock, m);
+                const adminStatus = await isAdmin(sock, chatId, senderId);
                 await antispamCommand.start(sock, m, { 
                     text: userMessage.slice(9), 
                     prefix: '.',
