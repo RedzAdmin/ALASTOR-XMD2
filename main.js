@@ -181,12 +181,20 @@ const channelInfo = {
 };
 
 async function handleMessages(sock, messageUpdate, printLog) {
+    let chatId; // Declare chatId at function scope to fix scope issue
+    
     try {
         const { messages, type } = messageUpdate;
         if (type !== 'notify') return;
 
         const message = messages[0];
         if (!message?.message) return;
+
+        chatId = message.key.remoteJid;
+        const senderId = message.key.participant || message.key.remoteJid;
+        const isGroup = chatId.endsWith('@g.us');
+        const senderIsSudo = await isSudo(senderId);
+        const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
 
         // Handle autoread functionality
         await handleAutoread(sock, message);
@@ -202,16 +210,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
             return;
         }
 
-        const chatId = message.key.remoteJid;
-        const senderId = message.key.participant || message.key.remoteJid;
-        const isGroup = chatId.endsWith('@g.us');
-        const senderIsSudo = await isSudo(senderId);
-        const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
-
         // Handle button responses
         if (message.message?.buttonsResponseMessage) {
             const buttonId = message.message.buttonsResponseMessage.selectedButtonId;
-            const chatId = message.key.remoteJid;
             
             if (buttonId === 'channel') {
                 await sock.sendMessage(chatId, { 
@@ -250,6 +251,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         if (userMessage.startsWith('.')) {
             console.log(`📝 Command used in ${isGroup ? 'group' : 'private'}: ${userMessage}`);
         }
+        
         // Read bot mode once; don't early-return so moderation can still run in private mode
         let isPublic = true;
         try {
@@ -259,7 +261,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
             console.error('Error checking access mode:', error);
             // default isPublic=true on error
         }
+        
         const isOwnerOrSudoCheck = message.key.fromMe || senderIsOwnerOrSudo;
+        
         // Check if user is banned (skip ban check for unban command)
         if (isBanned(senderId) && !userMessage.startsWith('.unban')) {
             // Only respond occasionally to avoid spam
@@ -344,7 +348,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // Check admin status only for admin commands in groups
         if (isGroup && isAdminCommand) {
-            const adminStatus = await isAdmin(sock, chatId, senderId);
+            const adminStatus = await isAdmin(sock, m);a
             isSenderAdmin = adminStatus.isSenderAdmin;
             isBotAdmin = adminStatus.isBotAdmin;
 
@@ -379,6 +383,22 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
 
+        // Create m object for command modules
+        const m = {
+            ...message,
+            from: chatId,
+            sender: senderId,
+            isGroup: isGroup,
+            quoted: message.message?.extendedTextMessage?.contextInfo?.quotedMessage || null,
+            reply: async (text, options = {}) => {
+                return await sock.sendMessage(chatId, { 
+                    text, 
+                    ...channelInfo, 
+                    ...options 
+                }, { quoted: message });
+            }
+        };
+
         // Command handlers - Execute commands immediately without waiting for typing indicator
         // We'll show typing indicator after command execution if needed
         let commandExecuted = false;
@@ -388,12 +408,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.hd'):
             case userMessage.startsWith('.enhance'):
             case userMessage.startsWith('.upscale'):
-                await hdCommand.start(sock, chatId, message, { text: userMessage.slice(3), prefix: '.' });
+                await hdCommand.start(sock, m, { text: userMessage.slice(3), prefix: '.' });
                 commandExecuted = true;
                 break;
 
             case userMessage.startsWith('.block'):
-                await blockCommand.start(sock, chatId, message, { 
+                await blockCommand.start(sock, m, { 
                     text: userMessage.slice(6), 
                     prefix: '.',
                     isCreator: message.key.fromMe || senderIsSudo,
@@ -403,7 +423,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
 
             case userMessage.startsWith('.unblock'):
-                await unblockCommand.start(sock, chatId, message, { 
+                await unblockCommand.start(sock, m, { 
                     text: userMessage.slice(8), 
                     prefix: '.',
                     isCreator: message.key.fromMe || senderIsSudo,
@@ -413,7 +433,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
 
             case userMessage.startsWith('.blocklist'):
-                await blocklistCommand.start(sock, chatId, message, { 
+                await blocklistCommand.start(sock, m, { 
                     text: userMessage.slice(10), 
                     prefix: '.',
                     isCreator: message.key.fromMe || senderIsSudo
@@ -423,7 +443,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
             case userMessage.startsWith('.antispam'):
                 const isAdminStatus = await isAdmin(sock, chatId, senderId);
-                await antispamCommand.start(sock, chatId, message, { 
+                await antispamCommand.start(sock, m, { 
                     text: userMessage.slice(9), 
                     prefix: '.',
                     isCreator: message.key.fromMe || senderIsSudo,
@@ -435,7 +455,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
             case userMessage.startsWith('.vcf'):
             case userMessage.startsWith('.vcard'):
-                await vcfCommand.start(sock, chatId, message, { 
+                await vcfCommand.start(sock, m, { 
                     text: userMessage.slice(4), 
                     prefix: '.',
                     quoted: m.quoted
@@ -453,7 +473,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     await sock.sendMessage(chatId, { text: '❌ Only admins can use this command!' });
                     break;
                 }
-                await kickinactiveCommand.start(sock, chatId, message, { 
+                await kickinactiveCommand.start(sock, m, { 
                     text: userMessage.slice(13), 
                     prefix: '.',
                     isAdmin: adminStatusKick.isSenderAdmin,
@@ -467,7 +487,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     await sock.sendMessage(chatId, { text: '❌ This command only works in groups!' });
                     break;
                 }
-                await listactiveCommand.start(sock, chatId, message, { 
+                await listactiveCommand.start(sock, m, { 
                     text: userMessage.slice(11), 
                     prefix: '.',
                     isGroup: true
@@ -480,7 +500,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     await sock.sendMessage(chatId, { text: '❌ This command only works in groups!' });
                     break;
                 }
-                await listinactiveCommand.start(sock, chatId, message, { 
+                await listinactiveCommand.start(sock, m, { 
                     text: userMessage.slice(13), 
                     prefix: '.',
                     isGroup: true
@@ -489,7 +509,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
 
             case userMessage.startsWith('.save'):
-                await saveCommand.start(sock, chatId, message, { 
+                await saveCommand.start(sock, m, { 
                     text: userMessage.slice(5), 
                     prefix: '.',
                     mentionByTag: message.message.extendedTextMessage?.contextInfo?.mentionedJid || [],
@@ -501,7 +521,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.extractaudio'):
             case userMessage.startsWith('.audio'):
             case userMessage.startsWith('.mp3'):
-                await extractaudioCommand.start(sock, chatId, message, { 
+                await extractaudioCommand.start(sock, m, { 
                     text: userMessage.slice(userMessage.startsWith('.extractaudio') ? 13 : 5), 
                     prefix: '.',
                     quoted: m.quoted,
